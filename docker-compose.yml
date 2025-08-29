@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: ons-webapp-postgres
+    environment:
+      POSTGRES_USER: ons_user
+      POSTGRES_PASSWORD: ons_password
+      POSTGRES_DB: ons_webapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ons_user -d ons_webapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

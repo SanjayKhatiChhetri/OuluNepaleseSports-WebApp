@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../backend/generated/prisma"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and user management
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String?   // Optional for OAuth users
+  name            String
+  phone           String?
+  profileImage    String?
+  role            String    @default("MEMBER")
+  isActive        Boolean   @default(false)
+  emailVerified   Boolean   @default(false)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  eventRegistrations EventRegistration[]
+  uploadedMedia      Media[]
+  createdContent     Content[]
+  socialPosts        SocialPost[]
+
+  @@map("users")
+}
+
+// Content model for announcements, news, and base content
+model Content {
+  id           String      @id @default(cuid())
+  type         String
+  title        String
+  content      String
+  slug         String      @unique
+  featuredImage String?
+  isPublished  Boolean     @default(false)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  priority     Int?        // For announcements ordering
+  authorId     String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  author       User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media        Media[]
+  translations ContentTranslation[]
+  socialPosts  SocialPost[]
+  event        Event?              // One-to-one relation for event content
+
+  @@map("content")
+}
+
+// Event model extending content for event-specific fields
+model Event {
+  id                   String    @id @default(cuid())
+  contentId            String    @unique
+  date                 DateTime
+  time                 String
+  location             String
+  maxParticipants      Int?
+  registrationDeadline DateTime?
+  registrationEnabled  Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Relations
+  content       Content             @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  registrations EventRegistration[]
+  gallery       Media[]
+
+  @@map("events")
+}
+
+// Media model for photos, videos, and documents
+model Media {
+  id           String    @id @default(cuid())
+  filename     String
+  originalName String
+  url          String
+  thumbnailUrl String?
+  type         String
+  size         Int
+  mimeType     String
+  tags         String    // JSON string for SQLite compatibility
+  eventId      String?
+  contentId    String?
+  uploadedById String
+  isPublic     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  uploadedBy User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  event      Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  content    Content? @relation(fields: [contentId], references: [id], onDelete: SetNull)
+
+  @@map("media")
+}
+
+// Event registration model for event sign-ups
+model EventRegistration {
+  id                   String               @id @default(cuid())
+  eventId              String
+  userId               String?              // Optional for guest registrations
+  name                 String
+  email                String
+  phone                String?
+  dietaryRestrictions  String?
+  emergencyContact     String?
+  status               String               @default("PENDING")
+  registeredAt         DateTime             @default(now())
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, email]) // Prevent duplicate registrations
+  @@map("event_registrations")
+}
+
+// Content translations for multilingual support
+model ContentTranslation {
+  id        String   @id @default(cuid())
+  contentId String
+  language  String   // ISO language code (en, fi, ne)
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  parentContent Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([contentId, language])
+  @@map("content_translations")
+}
+
+// Social media posts tracking
+model SocialPost {
+  id          String           @id @default(cuid())
+  contentId   String
+  authorId    String
+  platform    String
+  platformId  String?          // External platform post ID
+  status      String           @default("PENDING")
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  error       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("social_posts")
+}
+
+// Note: SQLite doesn't support enums, so we use String with validation in the application layer
