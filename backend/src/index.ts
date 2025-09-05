@@ -54,6 +54,7 @@ import testRoutes from './routes/test';
 import authRoutes from './routes/auth';
 import contentRoutes from './routes/content';
 import eventRoutes from './routes/event';
+import mediaRoutes from './routes/media';
 
 // API routes
 app.get('/api', (req, res) => {
@@ -71,6 +72,9 @@ app.use('/api/content', contentRoutes);
 
 // Event management routes
 app.use('/api/events', eventRoutes);
+
+// Media management routes
+app.use('/api/media', mediaRoutes);
 
 // Test routes for validation and rate limiting
 app.use('/api/test', testRoutes);
